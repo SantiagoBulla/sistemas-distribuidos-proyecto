@@ -1,0 +1,37 @@
+
+> movia-pruebas@1.0.0 test
+> node --test --test-reporter=spec funcionales.test.mjs
+
+▶ PF - Autenticación y autorización
+  ✔ PF-01 login válido entrega JWT de acceso y de refresco con el rol correcto (2.949679ms)
+  ✔ PF-02 login con clave errada responde 401 sin revelar si el correo existe (949.451366ms)
+  ✔ PF-03 petición sin token o con token alterado responde 401 (28.345395ms)
+  ✔ PF-04 RBAC: cada rol solo accede a sus rutas (403 en las demás) (73.165155ms)
+  ✔ PF-05 el token de refresco renueva el acceso y no sirve como token de acceso (68.383636ms)
+  ✔ PF-06 registro de ciudadano: crea, rechaza duplicados y claves cortas (2024.084744ms)
+✔ PF - Autenticación y autorización (5896.921721ms)
+▶ PF - Ocupación en tiempo real
+  ✔ PF-07 hay 25 buses reportando y su nivel corresponde al porcentaje (23.169085ms)
+  ✔ PF-08 consulta por ruta: el resumen suma el total de buses de la ruta (56.005214ms)
+  ✔ PF-09 próximo bus por estación: solo buses que se acercan, ordenados por distancia (23.040116ms)
+  ✔ PF-10 histórico agregado por minuto desde TimescaleDB y validación de parámetros (127.48929ms)
+✔ PF - Ocupación en tiempo real (232.422104ms)
+▶ PS - Validación de entradas
+  ✔ PS-01 incidencia con tipo, estación o descripción inválidos responde 400 (110.575462ms)
+  ✔ PS-02 la ingesta rechaza dispositivos sin clave y eventos fuera de rango (25.670241ms)
+✔ PS - Validación de entradas (137.724105ms)
+      notificación recibida 49 ms después del reporte
+▶ PI - Integración entre servicios
+  ✔ PI-01 flujo completo de incidencia: gateway → Kafka → alertas → Redis/PostgreSQL → WebSocket (1725.635237ms)
+      125 eventos en 5 s · p50 54 ms · p95 80 ms
+  ✔ PI-02 WebSocket: llegan eventos de ocupación con latencia extremo a extremo < 2 s (5004.062609ms)
+  ✔ PI-03 WebSocket sin token válido es rechazado (34.409627ms)
+✔ PI - Integración entre servicios (6764.620051ms)
+ℹ tests 15
+ℹ suites 4
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16566.732378

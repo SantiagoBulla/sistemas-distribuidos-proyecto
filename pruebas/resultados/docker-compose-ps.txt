@@ -1,0 +1,17 @@
+NAME                SERVICE     STATUS                    PORTS
+movia-alertas-1     alertas     Up 2 minutes (healthy)    3000/tcp
+movia-auth-1        auth        Up 3 minutes (healthy)    3000/tcp
+movia-gateway-1     gateway     Up 12 minutes (healthy)   3000/tcp
+movia-gateway-2     gateway     Up 12 minutes (healthy)   3000/tcp
+movia-ingesta-1     ingesta     Up 2 minutes (healthy)    8080/tcp
+movia-ingesta-2     ingesta     Up 2 minutes (healthy)    8080/tcp
+movia-kafka-ui-1    kafka-ui    Up 57 minutes             127.0.0.1:8081->8080/tcp
+movia-kafka1-1      kafka1      Up 57 minutes (healthy)   9092/tcp
+movia-kafka2-1      kafka2      Up 4 minutes (healthy)    9092/tcp
+movia-kafka3-1      kafka3      Up 57 minutes (healthy)   9092/tcp
+movia-ocupacion-1   ocupacion   Up 13 minutes (healthy)   3000/tcp
+movia-ocupacion-2   ocupacion   Up 41 minutes (healthy)   3000/tcp
+movia-postgres-1    postgres    Up 10 minutes (healthy)   5432/tcp
+movia-redis-1       redis       Up 57 minutes (healthy)   6379/tcp
+movia-simulador-1   simulador   Up 2 minutes              
+movia-web-1         web         Up 56 minutes             0.0.0.0:8080->80/tcp, 0.0.0.0:8443->443/tcp

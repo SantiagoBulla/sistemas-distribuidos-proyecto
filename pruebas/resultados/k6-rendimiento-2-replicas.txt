@@ -1,0 +1,34 @@
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+     execution: local
+        script: /scripts/rendimiento.js
+        output: -
+     scenarios: (100.00%) 2 scenarios, 330 max VUs, 1m30s max duration (incl. graceful stop):
+              * consultas: 30 looping VUs for 1m0s (exec: consultar, gracefulStop: 30s)
+              * ingesta: Up to 400.00 iterations/s for 1m0s over 3 stages (maxVUs: 100-300, exec: enviarEvento, gracefulStop: 30s)
+time="2026-11-16T18:24:33Z" level=info msg="Latencia simulador→gateway durante la carga: p50=205 ms p95=523 ms p99=738 ms · lag ocupación=153" source=console
+     ✓ consulta 200 con 25 buses
+     ✓ ingesta 202
+     checks.........................: 100.00% 32572 out of 32572
+     data_received..................: 163 MB  2.7 MB/s
+     data_sent......................: 12 MB   198 kB/s
+     dropped_iterations.............: 221     3.630562/s
+     http_req_blocked...............: avg=76.46µs  min=3.02µs  med=11.21µs  max=105.54ms p(90)=18.01µs  p(95)=30.42µs 
+     http_req_connecting............: avg=27.59µs  min=0s      med=0s       max=87.15ms  p(90)=0s       p(95)=0s      
+     http_req_duration..............: avg=87.26ms  min=3.47ms  med=71.8ms   max=1.06s    p(90)=169.41ms p(95)=218.67ms
+       { expected_response:true }...: avg=87.26ms  min=3.47ms  med=71.8ms   max=1.06s    p(90)=169.41ms p(95)=218.67ms
+     ✓ { scenario:consultas }.......: avg=105.97ms min=6.55ms  med=92.32ms  max=620.25ms p(90)=172.19ms p(95)=211.61ms
+     ✓ { scenario:ingesta }.........: avg=68.5ms   min=3.47ms  med=33.8ms   max=1.06s    p(90)=164.76ms p(95)=230.89ms
+   ✓ http_req_failed................: 0.00%   0 out of 32574
+     http_req_receiving.............: avg=1.51ms   min=13.89µs med=101.81µs max=215.76ms p(90)=548.84µs p(95)=2.8ms   
+     http_req_sending...............: avg=851.87µs min=8.41µs  med=38.38µs  max=232.52ms p(90)=196.16µs p(95)=692.29µs
+     http_req_tls_handshaking.......: avg=0s       min=0s      med=0s       max=0s       p(90)=0s       p(95)=0s      
+     http_req_waiting...............: avg=84.89ms  min=3.36ms  med=69.95ms  max=994.73ms p(90)=165.64ms p(95)=214.66ms
+     http_reqs......................: 32574   535.121808/s
+     iteration_duration.............: avg=90.4ms   min=3.84ms  med=74.5ms   max=1.06s    p(90)=174.56ms p(95)=224.56ms
+     iterations.....................: 32572   535.088952/s
+     vus............................: 47      min=31             max=196
+     vus_max........................: 204     min=130            max=204

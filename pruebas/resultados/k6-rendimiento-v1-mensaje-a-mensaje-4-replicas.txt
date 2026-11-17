@@ -1,0 +1,35 @@
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+     execution: local
+        script: /scripts/rendimiento.js
+        output: -
+     scenarios: (100.00%) 2 scenarios, 330 max VUs, 1m30s max duration (incl. graceful stop):
+              * consultas: 30 looping VUs for 1m0s (exec: consultar, gracefulStop: 30s)
+              * ingesta: Up to 400.00 iterations/s for 1m0s over 3 stages (maxVUs: 100-300, exec: enviarEvento, gracefulStop: 30s)
+time="2026-11-16T17:48:11Z" level=info msg="Latencia simulador→gateway durante la carga: p50=577 ms p95=11696 ms p99=18901 ms · lag ocupación=5747" source=console
+     ✓ consulta 200 con 25 buses
+     ✓ ingesta 202
+     checks.........................: 100.00% 25882 out of 25882
+     data_received..................: 103 MB  1.7 MB/s
+     data_sent......................: 9.5 MB  153 kB/s
+     dropped_iterations.............: 748     12.125466/s
+     http_req_blocked...............: avg=247.35µs min=2.86µs  med=12.12µs  max=403.57ms p(90)=22.63µs  p(95)=47.94µs 
+     http_req_connecting............: avg=99.91µs  min=0s      med=0s       max=261.39ms p(90)=0s       p(95)=0s      
+     http_req_duration..............: avg=204.47ms min=4.49ms  med=120.08ms max=2.34s    p(90)=424.47ms p(95)=703.94ms
+       { expected_response:true }...: avg=204.47ms min=4.49ms  med=120.08ms max=2.34s    p(90)=424.47ms p(95)=703.94ms
+     ✓ { scenario:consultas }.......: avg=167.4ms  min=6.45ms  med=140.39ms max=849.5ms  p(90)=301.17ms p(95)=373.51ms
+     ✗ { scenario:ingesta }.........: avg=228.26ms min=4.49ms  med=88.89ms  max=2.34s    p(90)=600.52ms p(95)=965.98ms
+   ✓ http_req_failed................: 0.00%   0 out of 25884
+     http_req_receiving.............: avg=4.14ms   min=14.29µs med=106.31µs max=441.05ms p(90)=1.1ms    p(95)=13.18ms 
+     http_req_sending...............: avg=3.62ms   min=9.64µs  med=44.21µs  max=293.83ms p(90)=375.76µs p(95)=5.24ms  
+     http_req_tls_handshaking.......: avg=0s       min=0s      med=0s       max=0s       p(90)=0s       p(95)=0s      
+     http_req_waiting...............: avg=196.7ms  min=4.37ms  med=114.07ms max=2.34s    p(90)=407.93ms p(95)=683.31ms
+     http_reqs......................: 25884   419.592993/s
+     iteration_duration.............: avg=210.47ms min=5.17ms  med=126.51ms max=2.34s    p(90)=433.63ms p(95)=707.13ms
+     iterations.....................: 25882   419.560572/s
+     vus............................: 166     min=0              max=282
+     vus_max........................: 284     min=130            max=284
+time="2026-11-16T17:48:11Z" level=error msg="thresholds on metrics 'http_req_duration{scenario:ingesta}' have been crossed"

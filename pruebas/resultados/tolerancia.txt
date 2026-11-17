@@ -1,0 +1,58 @@
+=================== PRUEBAS DE TOLERANCIA A FALLOS · 2026-11-16 13:16:40 ===================
+Estado inicial:
+  brokers=3/3 ['kafka1', 'kafka2', 'kafka3'] | ev/s=25 | p95=335 ms | consumidores ocupación=2 lag=0 | redis=ACTIVO postgres=ACTIVO | circuito auth=CERRADO
+
+---- E1. Caída de un broker de Kafka (kafka2) ----
+[13:16:46] kafka2 detenido. Esperando 20 s...
+  brokers=2/3 ['kafka1', 'kafka3'] | ev/s=25 | p95=374 ms | consumidores ocupación=2 lag=0 | redis=ACTIVO postgres=ACTIVO | circuito auth=CERRADO
+[13:17:08] kafka2 iniciado de nuevo. Esperando 30 s...
+  brokers=3/3 ['kafka1', 'kafka2', 'kafka3'] | ev/s=25 | p95=288 ms | consumidores ocupación=2 lag=0 | redis=ACTIVO postgres=ACTIVO | circuito auth=CERRADO
+  Eventos del simulador que fallaron tras 3 reintentos:
+    fallidos=5
+
+---- E2. Caída de una réplica del servicio de Ocupación ----
+[13:17:44] movia-ocupacion-1 detenido. Kafka reasigna sus particiones. Esperando 15 s...
+  brokers=3/3 ['kafka1', 'kafka2', 'kafka3'] | ev/s=25 | p95=203 ms | consumidores ocupación=1 lag=0 | redis=ACTIVO postgres=ACTIVO | circuito auth=CERRADO
+[13:18:00] movia-ocupacion-1 iniciado. Esperando 20 s...
+  brokers=3/3 ['kafka1', 'kafka2', 'kafka3'] | ev/s=25 | p95=150 ms | consumidores ocupación=2 lag=0 | redis=ACTIVO postgres=ACTIVO | circuito auth=CERRADO
+
+---- E3. Caída de una réplica del gateway durante 40 consultas seguidas ----
+  [consulta 10] movia-gateway-1 detenido
+  Con 2 réplicas (distribuido): 39 respuestas 200, 1 fallidas
+  Sin réplicas disponibles (equivalente a un servidor centralizado caído): 0 respuestas 200, 10 fallidas (último código 504)
+[13:19:10] réplicas del gateway iniciadas. Esperando 20 s...
+
+---- E4. Caída del servicio de autenticación (circuit breaker) ----
+  login intento 1 -> HTTP 503 en 3268 ms
+  login intento 2 -> HTTP 503 en 3172 ms
+  login intento 3 -> HTTP 503 en 3190 ms
+  login intento 4 -> HTTP 503 en 3178 ms
+  login intento 5 -> HTTP 503 en 3192 ms
+  login intento 6 -> HTTP 503 en 3176 ms
+  login intento 7 -> HTTP 503 en 204 ms
+  login intento 8 -> HTTP 503 en 189 ms
+  Consulta de ocupación con un token ya emitido -> HTTP 200 (el JWT se valida sin llamar a auth)
+  brokers=3/3 ['kafka1', 'kafka2', 'kafka3'] | ev/s=25 | p95=122 ms | consumidores ocupación=2 lag=0 | redis=ACTIVO postgres=ACTIVO | circuito auth=ABIERTO
+[13:19:57] auth iniciado. Esperando 15 s a que arranque...
+  [13:20:13] login tras la recuperación, intento 1 -> HTTP 200
+  brokers=3/3 ['kafka1', 'kafka2', 'kafka3'] | ev/s=25 | p95=125 ms | consumidores ocupación=2 lag=0 | redis=ACTIVO postgres=ACTIVO | circuito auth=SEMIABIERTO
+
+---- E5. Caída de PostgreSQL (histórico) ----
+[13:20:16] postgres detenido. Esperando 25 s...
+  Ocupación en vivo (Redis) sigue respondiendo -> HTTP 200
+  Eventos en cola de pendientes (Redis): 671
+  brokers=3/3 ['kafka1', 'kafka2', 'kafka3'] | ev/s=25 | p95=1056 ms | consumidores ocupación=2 lag=0 | redis=ACTIVO postgres=CAIDO | circuito auth=SEMIABIERTO
+[13:20:43] postgres iniciado. Esperando 40 s a que se vacíe la cola...
+  Eventos en cola de pendientes: 0
+  Filas de histórico antes: 77744 · después: 79519
+  ocupacion-1: {"instancia":"49805fc604da","procesados":2639,"descartados_obsoletos":0,"enviados_a_pendientes":390,"recuperados_de_pendientes":500,"particiones_asignadas":[0,2,4],"circuito_postgres":"CERRADO"}
+  ocupacion-2: {"instancia":"9daabb183339","procesados":38013,"descartados_obsoletos":14287,"enviados_a_pendientes":1595,"recuperados_de_pendientes":1304,"particiones_asignadas":[1,3,5],"circuito_postgres":"CERRADO"}
+  brokers=3/3 ['kafka1', 'kafka2', 'kafka3'] | ev/s=25 | p95=1059 ms | consumidores ocupación=2 lag=0 | redis=ACTIVO postgres=ACTIVO | circuito auth=CERRADO
+
+---- E6. Recuperación automática de un proceso que se cae ----
+[13:21:29] proceso de movia-ingesta-1 terminado abruptamente. Esperando 8 s...
+  /movia-ingesta-1 estado=running reinicios=4
+
+Estado final:
+  brokers=3/3 ['kafka1', 'kafka2', 'kafka3'] | ev/s=25 | p95=1051 ms | consumidores ocupación=2 lag=0 | redis=ACTIVO postgres=ACTIVO | circuito auth=SEMIABIERTO
+=================== FIN · 2026-11-16 13:21:37 ===================

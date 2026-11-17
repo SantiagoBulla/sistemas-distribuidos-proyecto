@@ -1,0 +1,227 @@
+name: movia
+
+# Valores compartidos por los tres nodos de Kafka (modo KRaft: cada nodo es broker y controlador)
+x-kafka-comun: &kafka-comun
+  image: apache/kafka:3.9.0
+  restart: unless-stopped
+  networks: [backend]
+  mem_limit: 900m
+  healthcheck:
+    test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+    interval: 15s
+    timeout: 10s
+    retries: 10
+    start_period: 30s
+
+x-kafka-env: &kafka-env
+  CLUSTER_ID: ${KAFKA_CLUSTER_ID}
+  KAFKA_PROCESS_ROLES: broker,controller
+  KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+  KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+  KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+  KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+  KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka1:9093,2@kafka2:9093,3@kafka3:9093
+  KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+  KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+  KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+  KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+  KAFKA_MIN_INSYNC_REPLICAS: 2
+  KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+  KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+  KAFKA_LOG_DIRS: /var/lib/kafka/data
+  KAFKA_HEAP_OPTS: -Xmx384m -Xms384m
+
+x-node-servicio: &node-servicio
+  restart: unless-stopped
+  networks: [backend]
+  mem_limit: 256m
+  env_file: .env
+  healthcheck:
+    test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health > /dev/null || exit 1"]
+    interval: 10s
+    timeout: 3s
+    retries: 5
+    start_period: 20s
+
+services:
+  # ---------------- Capa de mensajería (broker distribuido) ----------------
+  kafka1:
+    <<: *kafka-comun
+    hostname: kafka1
+    environment:
+      <<: *kafka-env
+      KAFKA_NODE_ID: 1
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:9092
+    volumes: [kafka1-data:/var/lib/kafka/data]
+
+  kafka2:
+    <<: *kafka-comun
+    hostname: kafka2
+    environment:
+      <<: *kafka-env
+      KAFKA_NODE_ID: 2
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9092
+    volumes: [kafka2-data:/var/lib/kafka/data]
+
+  kafka3:
+    <<: *kafka-comun
+    hostname: kafka3
+    environment:
+      <<: *kafka-env
+      KAFKA_NODE_ID: 3
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka3:9092
+    volumes: [kafka3-data:/var/lib/kafka/data]
+
+  # Contenedor de un solo uso que crea los topics con 3 réplicas
+  kafka-init:
+    image: apache/kafka:3.9.0
+    networks: [backend]
+    depends_on:
+      kafka1: { condition: service_healthy }
+      kafka2: { condition: service_healthy }
+      kafka3: { condition: service_healthy }
+    volumes: [./infra/kafka/crear-topics.sh:/crear-topics.sh:ro]
+    entrypoint: ["/bin/bash", "/crear-topics.sh"]
+    restart: "no"
+
+  # ---------------- Capa de datos ----------------
+  postgres:
+    image: timescale/timescaledb:2.17.2-pg16
+    restart: unless-stopped
+    networks: [backend]
+    mem_limit: 512m
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    networks: [backend]
+    mem_limit: 128m
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} --no-auth-warning ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ---------------- Microservicios ----------------
+  ingesta:
+    build: ./servicios/ingesta
+    restart: unless-stopped
+    networks: [backend]
+    mem_limit: 64m
+    env_file: .env
+    deploy: { replicas: 2 }
+    depends_on:
+      kafka-init: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  ocupacion:
+    <<: *node-servicio
+    build: ./servicios/ocupacion
+    deploy: { replicas: 2 }
+    depends_on:
+      kafka-init: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  alertas:
+    <<: *node-servicio
+    build: ./servicios/alertas
+    depends_on:
+      kafka-init: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  auth:
+    <<: *node-servicio
+    build: ./servicios/auth
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  gateway:
+    <<: *node-servicio
+    build: ./servicios/gateway
+    networks: [backend, frontend]
+    deploy: { replicas: 2 }
+    depends_on:
+      kafka-init: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      auth: { condition: service_healthy }
+
+  # Emisor IoT simulado: 25 buses del corredor NQS
+  simulador:
+    build: ./servicios/simulador
+    restart: unless-stopped
+    networks: [backend]
+    mem_limit: 64m
+    env_file: .env
+    depends_on:
+      ingesta: { condition: service_healthy }
+
+  # ---------------- Entrada pública: tablero web + proxy inverso con TLS ----------------
+  web:
+    build: ./web
+    restart: unless-stopped
+    networks: [frontend]
+    mem_limit: 64m
+    ports:
+      - "8080:80"
+      - "8443:443"
+    depends_on:
+      gateway: { condition: service_healthy }
+
+  # Consola para observar brokers, topics y grupos de consumidores (solo localhost)
+  kafka-ui:
+    image: kafbat/kafka-ui:v1.1.0
+    restart: unless-stopped
+    networks: [backend]
+    mem_limit: 400m
+    ports: ["127.0.0.1:8081:8080"]
+    environment:
+      KAFKA_CLUSTERS_0_NAME: movia
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka1:9092,kafka2:9092,kafka3:9092
+    depends_on:
+      kafka-init: { condition: service_completed_successfully }
+
+  # Pruebas automatizadas (se ejecutan bajo demanda con --profile pruebas)
+  pruebas:
+    build: ./pruebas
+    profiles: [pruebas]
+    networks: [backend, frontend]
+    env_file: .env
+
+  k6:
+    image: grafana/k6:0.54.0
+    profiles: [pruebas]
+    networks: [backend, frontend]
+    env_file: .env
+    volumes: [./pruebas/k6:/scripts:ro]
+
+networks:
+  backend:
+  frontend:
+
+volumes:
+  kafka1-data:
+  kafka2-data:
+  kafka3-data:
+  pg-data:
+  redis-data:
